@@ -1,4 +1,5 @@
 "use client"
+import axios from "axios";
 import { useEffect, useRef, useState } from "react";
 
 interface AudioDevice {
@@ -12,6 +13,7 @@ export default function Home() {
   const [selectedAudioDevices, setSelectedAudioDevices] = useState<string | undefined>(undefined)
   const [isRecording, setIsRecording] = useState<boolean>(false)
   const [saveAudios, setSaveAudios] = useState<any[]>([])
+  const [transcribe, setTranscribe] = useState("")
 
   const mediaRecorder = useRef<any>(undefined);
 
@@ -85,7 +87,26 @@ export default function Home() {
   //Get audio URL from save chunks
   const getAudioRef = (index: number) => {
     const recordedChunks = saveAudios[index];
-    return URL.createObjectURL(new Blob(recordedChunks))
+    const url = URL.createObjectURL(new Blob(recordedChunks))
+    setTimeout(async () => {
+      const formData = new FormData();
+      formData.append("file", new Blob(recordedChunks), `audio-${index}`)
+      await axios.post("/api/upload", formData, {
+        headers: { "Content-Type": "multipart/form-data" }
+      })
+      console.log("Upload")
+    }, 1000)
+    return url
+  }
+
+  const handleTranscribe = async (index: number) => {
+
+    const { data } = await axios.post("api/transcribe", { fileName: `audio-${index}` }, {
+      headers: { "Content-Type": "application/json" }
+    });
+
+    setTranscribe(data.transcribe)
+    console.log(data)
   }
 
   useEffect(() => {
@@ -166,7 +187,9 @@ export default function Home() {
                     <div className="hidden sm:flex sm:flex-col sm:items-end">
                       <audio src={getAudioRef(index)} controls></audio>
                     </div>
+                    <button onClick={() => handleTranscribe(index)} className="cursor-pointer">Transcribe</button>
                   </div>
+                  <p className="text-green-500">{transcribe}</p>
                 </li>
               ))}
             </ul>
